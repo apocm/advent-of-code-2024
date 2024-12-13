@@ -15,19 +15,40 @@ class December02
   def self.direction(a,b)
     if (a-b) < 0
      return -1
+    elsif (a-b) == 0
+      return 0
     end
     1
   end
 
-  def self.is_report_safe?(report, initial_direction)
-    puts report if @@debug
-
+  def self.is_report_safe(report, initial_direction)
     report.each_with_index do |level, i|
-
       next_level = report[i+1]
+
       puts "comparing #{level}, #{next_level}" if @@debug
 
-      if self.direction(level, next_level) != initial_direction # not safe
+      is_level_safe = self.is_level_safe(initial_direction, level, next_level)
+
+      if !is_level_safe
+        puts "unsafe level" if @@debug
+        return [false, i]
+      end
+
+      break if i == report.length - 2 # end of comparison
+    end
+
+    [true, 0]
+  end
+
+  def self.is_level_safe(initial_direction, level, next_level)
+      direction = self.direction(level, next_level)
+
+      if direction == 0
+        puts "unsafe, not incr/decr" if @@debug
+        return false
+      end
+
+      if direction != initial_direction # not safe
         puts "unsafe direction" if @@debug
         return false
       end
@@ -37,10 +58,19 @@ class December02
         return false
       end
 
-      break if i == report.length - 2 # end of comparison
+      true
+  end
+
+
+  def self.get_init_direction(report)
+    initial_direction = 0
+
+    for i in 0..report.length-2 do
+      initial_direction = self.direction(report[i], report[i+1])
+      break if initial_direction != 0
     end
 
-    true
+    initial_direction
   end
 
   def self.analyze(reports = nil, debug: false)
@@ -57,15 +87,46 @@ class December02
 
     safe_reports_count = 0
 
-    reports.each do |report|
-      initial_direction = self.direction(report[0], report[1])
+    reports.each_with_index do |report, report_number|
+      puts report.join(', ')
+      puts "report #: #{report_number+1}"
 
-      safe_reports_count += 1 if self.is_report_safe?(report, initial_direction)
+      init_direction = self.get_init_direction(report)
+
+      puts "initial direction: #{init_direction}"
+      is_safe, level_index = self.is_report_safe(report, init_direction)
+
+      if is_safe
+        safe_reports_count += 1
+      else
+        is_safe_dampened = self.dampen_report(report)
+        if is_safe_dampened
+          safe_reports_count += 1
+        end
+      end
+      break if report_number == 10 && @@debug
     end
 
     puts "nb safe reports: #{safe_reports_count}"
   end
+
+  def self.dampen_report(report)
+    report.each do |level|
+      level_to_remove_index = report.index(level)
+      dampened_report = report.dup
+      dampened_report.delete_at(level_to_remove_index)
+      init_direction = self.get_init_direction(dampened_report)
+      is_safe, index = self.is_report_safe(dampened_report, init_direction)
+
+      if is_safe
+        return true
+      end
+    end
+
+    false
+  end
 end
 
-# Puzzle 1
-December02.analyze(Reports.reports, debug: false)
+# Puzzle 1 + 2
+#December02.analyze(debug: true)
+December02.analyze(Reports.reports, debug: true)
